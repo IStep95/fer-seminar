@@ -1,0 +1,8 @@
+<launch>
+	<group ns="turtlesim1">
+	       <node pkg="odometry" name="sim" type="odometry_node"/>
+	</group>
+	<group ns="turtlesim2">
+	       <node pkg="odometry" name="sim" type="odometry_node"/>
+	</group>
+</launch>
