@@ -28,9 +28,7 @@
  */
 
 #include <QApplication>
-
 #include <ros/ros.h>
-
 #include "odometry/turtle_frame.h"
 
 class TurtleApp : public QApplication

@@ -41,6 +41,8 @@
 # include <odometry/TeleportRelative.h>
 # include <odometry/TeleportAbsolute.h>
 # include <odometry/Color.h>
+# include <geometry_msgs/PoseWithCovariance.h>
+# include <nav_msgs/Odometry.h>
 #endif
 
 #include <QImage>
@@ -84,10 +86,11 @@ private:
   ros::Subscriber velocity_sub_;
   ros::Publisher pose_pub_;
   ros::Publisher color_pub_;
+  ros::Publisher odo_pub;
+  ros::Time current_time, last_time;
   ros::ServiceServer set_pen_srv_;
   ros::ServiceServer teleport_relative_srv_;
   ros::ServiceServer teleport_absolute_srv_;
-
   ros::WallTime last_command_time_;
 
   float meter_;

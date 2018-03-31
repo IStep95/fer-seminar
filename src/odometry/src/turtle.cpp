@@ -28,7 +28,7 @@
  */
 
 #include "odometry/turtle.h"
-
+#include <nav_msgs/Odometry.h>
 #include <QColor>
 #include <QRgb>
 
@@ -39,179 +39,210 @@
 namespace odometry
 {
 
-Turtle::Turtle(const ros::NodeHandle& nh, const QImage& turtle_image, const QPointF& pos, float orient)
-: nh_(nh)
-, turtle_image_(turtle_image)
-, pos_(pos)
-, orient_(orient)
-, lin_vel_(0.0)
-, ang_vel_(0.0)
-, pen_on_(true)
-, pen_(QColor(DEFAULT_PEN_R, DEFAULT_PEN_G, DEFAULT_PEN_B))
-{
-  pen_.setWidth(3);
-
-  velocity_sub_ = nh_.subscribe("cmd_vel", 1, &Turtle::velocityCallback, this);
-  pose_pub_ = nh_.advertise<Pose>("pose", 1);
-  color_pub_ = nh_.advertise<Color>("color_sensor", 1);
-  set_pen_srv_ = nh_.advertiseService("set_pen", &Turtle::setPenCallback, this);
-  teleport_relative_srv_ = nh_.advertiseService("teleport_relative", &Turtle::teleportRelativeCallback, this);
-  teleport_absolute_srv_ = nh_.advertiseService("teleport_absolute", &Turtle::teleportAbsoluteCallback, this);
-
-  meter_ = turtle_image_.height();
-  rotateImage();
-}
-
-
-void Turtle::velocityCallback(const geometry_msgs::Twist::ConstPtr& vel)
-{
-  last_command_time_ = ros::WallTime::now();
-  lin_vel_ = vel->linear.x;
-  ang_vel_ = vel->angular.z;
-}
-
-bool Turtle::setPenCallback(odometry::SetPen::Request& req, odometry::SetPen::Response&)
-{
-  pen_on_ = !req.off;
-  if (req.off)
+  Turtle::Turtle(const ros::NodeHandle& nh, const QImage& turtle_image, const QPointF& pos, float orient)
+  : nh_(nh)
+  , turtle_image_(turtle_image)
+  , pos_(pos)
+  , orient_(orient)
+  , lin_vel_(0.0)
+  , ang_vel_(0.0)
+  , pen_on_(true)
+  , pen_(QColor(DEFAULT_PEN_R, DEFAULT_PEN_G, DEFAULT_PEN_B))
   {
+    pen_.setWidth(3);
+
+    velocity_sub_ = nh_.subscribe("cmd_vel", 1, &Turtle::velocityCallback, this);
+    pose_pub_ = nh_.advertise<Pose>("pose", 1);
+    color_pub_ = nh_.advertise<Color>("color_sensor", 1);
+    set_pen_srv_ = nh_.advertiseService("set_pen", &Turtle::setPenCallback, this);
+    teleport_relative_srv_ = nh_.advertiseService("teleport_relative", &Turtle::teleportRelativeCallback, this);
+    teleport_absolute_srv_ = nh_.advertiseService("teleport_absolute", &Turtle::teleportAbsoluteCallback, this);
+    meter_ = turtle_image_.height();
+
+    odo_pub = nh_.advertise<nav_msgs::Odometry>("odometry_msg", 1);
+    current_time = ros::Time::now();
+    last_time = ros::Time::now();
+
+    rotateImage();
+  }
+
+  geometry_msgs::Twist _currentTwist;
+
+  void Turtle::velocityCallback(const geometry_msgs::Twist::ConstPtr& twist)
+  {
+    _currentTwist = *twist;
+    last_command_time_ = ros::WallTime::now();
+    lin_vel_ = twist->linear.x;
+    ang_vel_ = twist->angular.z;
+  }
+
+  bool Turtle::setPenCallback(odometry::SetPen::Request& req, odometry::SetPen::Response&)
+  {
+    pen_on_ = !req.off;
+    if (req.off)
+    {
+      return true;
+    }
+
+    QPen pen(QColor(req.r, req.g, req.b));
+    if (req.width != 0)
+    {
+      pen.setWidth(req.width);
+    }
+
+    pen_ = pen;
     return true;
   }
 
-  QPen pen(QColor(req.r, req.g, req.b));
-  if (req.width != 0)
+  bool Turtle::teleportRelativeCallback(odometry::TeleportRelative::Request& req, odometry::TeleportRelative::Response&)
   {
-    pen.setWidth(req.width);
+    teleport_requests_.push_back(TeleportRequest(0, 0, req.angular, req.linear, true));
+    return true;
   }
 
-  pen_ = pen;
-  return true;
-}
-
-bool Turtle::teleportRelativeCallback(odometry::TeleportRelative::Request& req, odometry::TeleportRelative::Response&)
-{
-  teleport_requests_.push_back(TeleportRequest(0, 0, req.angular, req.linear, true));
-  return true;
-}
-
-bool Turtle::teleportAbsoluteCallback(odometry::TeleportAbsolute::Request& req, odometry::TeleportAbsolute::Response&)
-{
-  teleport_requests_.push_back(TeleportRequest(req.x, req.y, req.theta, 0, false));
-  return true;
-}
-
-void Turtle::rotateImage()
-{
-  QTransform transform;
-  transform.rotate(-orient_ * 180.0 / PI + 90.0);
-  turtle_rotated_image_ = turtle_image_.transformed(transform);
-}
-
-bool Turtle::update(double dt, QPainter& path_painter, const QImage& path_image, qreal canvas_width, qreal canvas_height)
-{
-  bool modified = false;
-  qreal old_orient = orient_;
-
-  // first process any teleportation requests, in order
-  V_TeleportRequest::iterator it = teleport_requests_.begin();
-  V_TeleportRequest::iterator end = teleport_requests_.end();
-  for (; it != end; ++it)
+  bool Turtle::teleportAbsoluteCallback(odometry::TeleportAbsolute::Request& req, odometry::TeleportAbsolute::Response&)
   {
-    const TeleportRequest& req = *it;
+    teleport_requests_.push_back(TeleportRequest(req.x, req.y, req.theta, 0, false));
+    return true;
+  }
+
+  void Turtle::rotateImage()
+  {
+    QTransform transform;
+    transform.rotate(-orient_ * 180.0 / PI + 90.0);
+    turtle_rotated_image_ = turtle_image_.transformed(transform);
+  }
+
+  bool Turtle::update(double dt, QPainter& path_painter, const QImage& path_image, qreal canvas_width, qreal canvas_height)
+  {
+    bool modified = false;
+    qreal old_orient = orient_;
+    current_time = ros::Time::now();
+
+    // first process any teleportation requests, in order
+    V_TeleportRequest::iterator it = teleport_requests_.begin();
+    V_TeleportRequest::iterator end = teleport_requests_.end();
+    for (; it != end; ++it)
+    {
+      const TeleportRequest& req = *it;
+
+      QPointF old_pos = pos_;
+      if (req.relative)
+      {
+        orient_ += req.theta;
+        current_time = ros::Time::now();
+
+        //compute odometry in a typical way given the velocities of the robot
+        //double dt = (current_time - last_time).toSec();
+        //double delta_x = (vx * cos(th) - vy * sin(th)) * dt;
+        //double delta_y = (vx * sin(th) + vy * cos(th)) * dt;
+        //double delta_th = vth * dt;
+
+        pos_.rx() += std::sin(orient_ + PI/2.0) * req.linear;
+        pos_.ry() += std::cos(orient_ + PI/2.0) * req.linear;
+        
+      }
+      else
+      {
+        pos_.setX(req.pos.x());
+        pos_.setY(std::max(0.0, static_cast<double>(canvas_height - req.pos.y())));
+        orient_ = req.theta;
+      }
+
+      if (pen_on_)
+      {
+        path_painter.setPen(pen_);
+        path_painter.drawLine(pos_ * meter_, old_pos * meter_);
+      }
+      modified = true;
+    }
+
+    teleport_requests_.clear();
+
+    if (ros::WallTime::now() - last_command_time_ > ros::WallDuration(1.0))
+    {
+      lin_vel_ = 0.0;
+      ang_vel_ = 0.0;
+    }
 
     QPointF old_pos = pos_;
-    if (req.relative)
+
+    orient_ = orient_ + ang_vel_ * dt;
+    // Keep orient_ between -pi and +pi
+    orient_ -= 2*PI * std::floor((orient_ + PI)/(2*PI));
+    pos_.rx() += std::sin(orient_ + PI/2.0) * lin_vel_ * dt;
+    pos_.ry() += std::cos(orient_ + PI/2.0) * lin_vel_ * dt;
+
+    // Clamp to screen size
+    if (pos_.x() < 0 || pos_.x() > canvas_width ||
+        pos_.y() < 0 || pos_.y() > canvas_height)
     {
-      orient_ += req.theta;
-      pos_.rx() += std::sin(orient_ + PI/2.0) * req.linear;
-      pos_.ry() += std::cos(orient_ + PI/2.0) * req.linear;
+      ROS_WARN("Oh no! I hit the wall! (Clamping from [x=%f, y=%f])", pos_.x(), pos_.y());
     }
-    else
+
+    pos_.setX(std::min(std::max(static_cast<double>(pos_.x()), 0.0), static_cast<double>(canvas_width)));
+    pos_.setY(std::min(std::max(static_cast<double>(pos_.y()), 0.0), static_cast<double>(canvas_height)));
+
+    // Publish pose of the turtle
+    Pose p;
+    p.x = pos_.x();
+    p.y = canvas_height - pos_.y();
+    p.theta = orient_;
+    p.linear_velocity = lin_vel_;
+    p.angular_velocity = ang_vel_;
+    pose_pub_.publish(p);
+  
+    // Publish odometry message of the turtle
+    nav_msgs::Odometry odometryMessage;
+    odometryMessage.header.stamp = current_time;
+    odometryMessage.header.frame_id = "odom";
+
+    // set the position 
+    
+    //odometryMessage.pose.pose = p;
+    odometryMessage.child_frame_id = "base_link";
+    odometryMessage.twist.twist.linear  = _currentTwist.linear;
+    odometryMessage.twist.twist.angular = _currentTwist.angular;
+    odo_pub.publish(odometryMessage);
+
+
+    // Figure out (and publish) the color underneath the turtle
     {
-      pos_.setX(req.pos.x());
-      pos_.setY(std::max(0.0, static_cast<double>(canvas_height - req.pos.y())));
-      orient_ = req.theta;
+      Color color;
+      QRgb pixel = path_image.pixel((pos_ * meter_).toPoint());
+      color.r = qRed(pixel);
+      color.g = qGreen(pixel);
+      color.b = qBlue(pixel);
+      color_pub_.publish(color);
     }
 
-    if (pen_on_)
+    ROS_DEBUG("[%s]: pos_x: %f pos_y: %f theta: %f", nh_.getNamespace().c_str(), pos_.x(), pos_.y(), orient_);
+
+    if (orient_ != old_orient)
     {
-      path_painter.setPen(pen_);
-      path_painter.drawLine(pos_ * meter_, old_pos * meter_);
+      rotateImage();
+      modified = true;
     }
-    modified = true;
-  }
-
-  teleport_requests_.clear();
-
-  if (ros::WallTime::now() - last_command_time_ > ros::WallDuration(1.0))
-  {
-    lin_vel_ = 0.0;
-    ang_vel_ = 0.0;
-  }
-
-  QPointF old_pos = pos_;
-
-  orient_ = orient_ + ang_vel_ * dt;
-  // Keep orient_ between -pi and +pi
-  orient_ -= 2*PI * std::floor((orient_ + PI)/(2*PI));
-  pos_.rx() += std::sin(orient_ + PI/2.0) * lin_vel_ * dt;
-  pos_.ry() += std::cos(orient_ + PI/2.0) * lin_vel_ * dt;
-
-  // Clamp to screen size
-  if (pos_.x() < 0 || pos_.x() > canvas_width ||
-      pos_.y() < 0 || pos_.y() > canvas_height)
-  {
-    ROS_WARN("Oh no! I hit the wall! (Clamping from [x=%f, y=%f])", pos_.x(), pos_.y());
-  }
-
-  pos_.setX(std::min(std::max(static_cast<double>(pos_.x()), 0.0), static_cast<double>(canvas_width)));
-  pos_.setY(std::min(std::max(static_cast<double>(pos_.y()), 0.0), static_cast<double>(canvas_height)));
-
-  // Publish pose of the turtle
-  Pose p;
-  p.x = pos_.x();
-  p.y = canvas_height - pos_.y();
-  p.theta = orient_;
-  p.linear_velocity = lin_vel_;
-  p.angular_velocity = ang_vel_;
-  pose_pub_.publish(p);
-
-  // Figure out (and publish) the color underneath the turtle
-  {
-    Color color;
-    QRgb pixel = path_image.pixel((pos_ * meter_).toPoint());
-    color.r = qRed(pixel);
-    color.g = qGreen(pixel);
-    color.b = qBlue(pixel);
-    color_pub_.publish(color);
-  }
-
-  ROS_DEBUG("[%s]: pos_x: %f pos_y: %f theta: %f", nh_.getNamespace().c_str(), pos_.x(), pos_.y(), orient_);
-
-  if (orient_ != old_orient)
-  {
-    rotateImage();
-    modified = true;
-  }
-  if (pos_ != old_pos)
-  {
-    if (pen_on_)
+    if (pos_ != old_pos)
     {
-      path_painter.setPen(pen_);
-      path_painter.drawLine(pos_ * meter_, old_pos * meter_);
+      if (pen_on_)
+      {
+        path_painter.setPen(pen_);
+        path_painter.drawLine(pos_ * meter_, old_pos * meter_);
+      }
+      modified = true;
     }
-    modified = true;
+
+    last_time = current_time;
+    return modified;
   }
 
-  return modified;
-}
-
-void Turtle::paint(QPainter& painter)
-{
-  QPointF p = pos_ * meter_;
-  p.rx() -= 0.5 * turtle_rotated_image_.width();
-  p.ry() -= 0.5 * turtle_rotated_image_.height();
-  painter.drawImage(p, turtle_rotated_image_);
-}
+  void Turtle::paint(QPainter& painter)
+  {
+    QPointF p = pos_ * meter_;
+    p.rx() -= 0.5 * turtle_rotated_image_.width();
+    p.ry() -= 0.5 * turtle_rotated_image_.height();
+    painter.drawImage(p, turtle_rotated_image_);
+  }
 
 }
