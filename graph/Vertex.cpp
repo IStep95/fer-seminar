@@ -27,6 +27,11 @@ string Vertex::GetData()
 	return data;
 }
 
+void  Vertex::SetData(string _data)
+{
+	data = _data;
+}
+
 void Vertex::AddNeighbourVertex(Vertex *vertex)
 {
 	std::list<Vertex>::iterator it;
@@ -40,4 +45,10 @@ void Vertex::AddNeighbourVertex(Vertex *vertex)
 list<Vertex> Vertex::GetNeighbours()
 {
 	return neighbours;
+}
+
+bool Vertex::Equals(Vertex vertex)
+{
+	if (id == vertex.GetId()) return true;
+	return false;
 }

@@ -11,7 +11,10 @@ class Edge
         int weight;
     public:
         Edge(Vertex,Vertex,int);
+        ~Edge();
         Vertex GetVertex1();
         Vertex GetVertex2();
+        int GetWeight();
+        bool Equals(Edge);
 };
 #endif

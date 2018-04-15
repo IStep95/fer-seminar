@@ -19,7 +19,9 @@ class Vertex
 
         long GetId();
         string GetData();
-        void AddNeighbourVertex(Vertex*);
         list<Vertex> GetNeighbours();
+        void SetData(string data);
+        void AddNeighbourVertex(Vertex*);
+        bool Equals(Vertex);
 };
 #endif
