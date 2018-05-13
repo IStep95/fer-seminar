@@ -72,7 +72,7 @@ void apatDirectionsCallback(const std_msgs::String::ConstPtr& msg)
   odom.pose.pose.position = current_position;
 
   std::stringstream ss;
-  ss << "New position 2D: " << odom.pose.pose.position.x << "," << odom.pose.pose.position.y;
+  ss << "Sent new position 2D: " << odom.pose.pose.position.x << "," << odom.pose.pose.position.y;
 
   ROS_INFO("%s", ss.str().c_str());
 
