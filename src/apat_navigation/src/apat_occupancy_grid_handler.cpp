@@ -56,7 +56,8 @@ void apatOdometryCallback(nav_msgs::Odometry odom) {
     }
     ROS_INFO("%s", y.c_str());
   }
-  
+
+  apat_occupancy_grid_publisher.publish(grid);
 }
 
 /**

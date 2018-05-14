@@ -7,6 +7,7 @@
 
 
 std::string APAT_PLANER_TOPIC = "apat_planer";
+std::string APAT_VEHICLE_RETURN_TOPIC = "apat_vehicle_return";
 std::string APAT_OCCUPANCY_GRID_TOPIC = "apat_occupancy_grid";
 
 std::string APAT_PLANER_HANDLER_NAME = "apat_planer_handler";
@@ -14,11 +15,28 @@ std::string APAT_PLANER_HANDLER_NAME = "apat_planer_handler";
 // Global publisher shared between main and subscriber's callback
 ros::Publisher apat_planer_publisher;
 
+// Global occupancy grid
+nav_msgs::OccupancyGrid grid;
 
-void apatOccupancyGridCallback(nav_msgs::OccupancyGrid grid) {
+void apatOccupancyGridCallback(nav_msgs::OccupancyGrid _grid) {
 
+    grid = _grid;
+    ROS_INFO("%d %d", grid.info.width, grid.info.height);
 
+}
 
+void apatVehicleReturnCallback(std_msgs::String msg) {
+    if (msg.data == "RETURN_PATH") {
+        ROS_INFO("Pozvan return.");
+        
+        if (grid.info.width == 0) {
+            ROS_INFO("Vehicle is on (0,0).");
+        } else {
+            ROS_INFO("%d %d", grid.info.width, grid.info.height);
+            
+        }
+        
+    }
 }
 
 /**
@@ -31,6 +49,8 @@ int main(int argc, char **argv)
 
   apat_planer_publisher = n.advertise<std_msgs::String>(APAT_PLANER_TOPIC.c_str(), 50);
   ros::Subscriber apat_occupancy_grid_subscriber = n.subscribe(APAT_OCCUPANCY_GRID_TOPIC.c_str(), 1000, apatOccupancyGridCallback);
+  ros::Subscriber apat_vehicle_return_subscriber = n.subscribe(APAT_VEHICLE_RETURN_TOPIC.c_str(), 1000, apatVehicleReturnCallback);
+
 
   ros::Rate loop_rate(1);
 
