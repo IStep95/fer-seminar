@@ -15,11 +15,14 @@ std::string APAT_VEHICLE_SIMULATOR_NAME = "apat_vehicle_simulator";
 void apatVehicleReturnCallback(apat_navigation::Pathr pathr) {
 
     ROS_INFO("Ruta za nazad.");
-    int length = sizeof(pathr.data)/sizeof(pathr.data[0]);
-
-    for (int i = 0; i < length; i++) {
-        ROS_INFO("%s", pathr.data[i]);
+    int i = 0;
+    
+    while(std::strcmp(pathr.data[i].c_str(), "") != 0)
+    {
+        ROS_INFO("%s", pathr.data[i].c_str());
+        i++;
     }
+    
 }
 
 

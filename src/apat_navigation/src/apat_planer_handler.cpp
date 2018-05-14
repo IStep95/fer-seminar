@@ -35,9 +35,10 @@ void apatVehicleReturnCallback(std_msgs::String msg) {
         } else {
             ROS_INFO("%d %d", grid.info.width, grid.info.height);
             //std::string* return_path = new std::string[4] {"N", "NE", "SW", "S"};
-            std::string strarray[] = {"NE", "N", "S"};
-            std::vector<std::string> strvector(strarray, strarray + 3);
+            std::string strarray[] = {"NE", "N", "S", ""};
 
+            
+            std::vector<std::string> strvector(strarray, strarray + 4);
             pathr.data = strvector;
             apat_planer_publisher.publish(pathr);
         }
