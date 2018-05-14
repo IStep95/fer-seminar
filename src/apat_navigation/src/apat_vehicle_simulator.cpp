@@ -6,7 +6,6 @@
 #include <sstream>
 
 std::string APAT_DIRECTIONS_TOPIC = "apat_directions";
-
 std::string APAT_VEHICLE_SIMULATOR_NAME = "apat_vehicle_simulator";
 
 int main(int argc, char **argv)

@@ -69,16 +69,16 @@ int main()
     graph->AddEdge(4, 5, 6);
     graph->AddEdge(5, 6, 10);
 
-    graph->SetVertexData(0, "3");
-    graph->SetVertexData(1, "1");
-    graph->SetVertexData(2, "4");
-    graph->SetVertexData(3, "6");
-    graph->SetVertexData(4, "7");
-    graph->SetVertexData(5, "5");
-    graph->SetVertexData(6, "2");
+    graph->SetVertexData(0, "A");
+    graph->SetVertexData(1, "B");
+    graph->SetVertexData(2, "C");
+    graph->SetVertexData(3, "D");
+    graph->SetVertexData(4, "E");
+    graph->SetVertexData(5, "F");
+    graph->SetVertexData(6, "G");
 
 	Distance *distances = shortestReachBFS(0, graph);
-	for (int i = 0; i < graph->GetAllVertexes().size(); ++i)
+	for (int i = 0; (unsigned int) i < graph->GetAllVertexes().size(); ++i)
 	{
 		cout << distances[i].GetDistance() << " ";
 		cout << graph->GetVertex(i).GetData() << "\n";

@@ -3,7 +3,6 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Point.h>
 #include <string>
-
 #include <sstream>
 
 std::string APAT_DIRECTIONS_TOPIC = "apat_directions";
@@ -31,6 +30,8 @@ void apatDirectionsCallback(const std_msgs::String::ConstPtr& msg)
   // Validation is OK, proceed with execution
 
   ROS_INFO("I got new direction: [%s]", input_direction.c_str());
+
+  ROS_INFO("Tu sam sigurno");
 
   ros::Time current_time = ros::Time::now();
 

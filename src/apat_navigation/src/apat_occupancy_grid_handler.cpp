@@ -35,7 +35,7 @@ void apatOdometryCallback(nav_msgs::Odometry odom) {
   
   // 1. convert the point to the grid position
   odom.pose.pose.position.x = (int)odom.pose.pose.position.x + GRID_WIDTH/2;
-  odom.pose.pose.position.y = (int)odom.pose.pose.position.y + GRID_HEIGHT/2;
+  odom.pose.pose.position.y = (-1)*(int)odom.pose.pose.position.y + GRID_HEIGHT/2;
 
   // 2. Set new position as origin in the grid
   grid.info.origin = odom.pose.pose;
@@ -45,10 +45,10 @@ void apatOdometryCallback(nav_msgs::Odometry odom) {
 
   // 4. Print the grid
   std::string y = "";
-  for (int i = 0; i < grid.info.width; i++) {
+  for (int i = 0; i < grid.info.height; i++) {
     y = "";
-    for (int j = 0; j < grid.info.height; j++) {      
-      if (grid.data[i + grid.info.width * j] == 0) {
+    for (int j = 0; j < grid.info.width; j++) {      
+      if (grid.data[i * grid.info.width + j] == 0) {
         y.push_back('0');
       } else {
         y.push_back('1');
@@ -56,7 +56,7 @@ void apatOdometryCallback(nav_msgs::Odometry odom) {
     }
     ROS_INFO("%s", y.c_str());
   }
-
+  
 }
 
 /**
