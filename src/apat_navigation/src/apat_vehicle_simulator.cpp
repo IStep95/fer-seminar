@@ -1,5 +1,6 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
+#include <apat_navigation/Pathr.h>
 #include <iostream>	//std::cout
 #include <string>	//std::string, std::getline();
 
@@ -7,7 +8,20 @@
 
 std::string APAT_DIRECTIONS_TOPIC = "apat_directions";
 std::string APAT_VEHICLE_RETURN_TOPIC = "apat_vehicle_return";
+std::string APAT_PLANER_TOPIC = "apat_planer";
+
 std::string APAT_VEHICLE_SIMULATOR_NAME = "apat_vehicle_simulator";
+
+void apatVehicleReturnCallback(apat_navigation::Pathr pathr) {
+
+    ROS_INFO("Ruta za nazad.");
+    int length = sizeof(pathr.data)/sizeof(pathr.data[0]);
+
+    for (int i = 0; i < length; i++) {
+        ROS_INFO("%s", pathr.data[i]);
+    }
+}
+
 
 int main(int argc, char **argv)
 {
@@ -16,6 +30,8 @@ int main(int argc, char **argv)
 
   ros::Publisher directions_pub = n.advertise<std_msgs::String>(APAT_DIRECTIONS_TOPIC, 50);
   ros::Publisher vehicle_return_pub = n.advertise<std_msgs::String>(APAT_VEHICLE_RETURN_TOPIC, 50);
+  ros::Subscriber apat_planer_subscriber = n.subscribe(APAT_PLANER_TOPIC, 1000, apatVehicleReturnCallback);
+  
   ros::Rate loop_rate(1);
 
   std::cout << "Hello, this is the vehicle simulator." << std::endl;
